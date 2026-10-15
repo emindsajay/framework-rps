@@ -1,0 +1,54 @@
+user www-data;
+# Pinned to the container CPU limit. "auto" follows the host CPU count.
+worker_processes 2;
+worker_rlimit_nofile 8192;
+error_log /dev/stderr warn;
+pid /tmp/nginx/nginx.pid;
+
+events {
+    worker_connections 4096;
+    multi_accept on;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    access_log off;
+    sendfile on;
+    server_tokens off;
+    keepalive_timeout 65s;
+    keepalive_requests 100000;
+    gzip off;
+
+    upstream php_fpm {
+        server 127.0.0.1:9000;
+        keepalive __APP_CONCURRENCY__;
+    }
+
+    server {
+        listen 80 default_server;
+        server_name _;
+        root /var/www/html/public;
+        index index.php;
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location = /index.php {
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            fastcgi_pass php_fpm;
+            fastcgi_keep_conn on;
+            fastcgi_connect_timeout 5s;
+            fastcgi_send_timeout 30s;
+            fastcgi_read_timeout 30s;
+            fastcgi_buffers 16 16k;
+            fastcgi_buffer_size 32k;
+        }
+
+        location ~ \.php$ {
+            return 404;
+        }
+    }
+}

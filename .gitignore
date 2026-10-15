@@ -1,0 +1,6 @@
+results/*
+!results/.gitkeep
+.DS_Store
+springboot/target/
+nodejs/node_modules/
+fastify/node_modules/
